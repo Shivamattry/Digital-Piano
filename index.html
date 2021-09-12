@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Piano</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8">
+        <meta name="keywords" content="piano simulator">
+        <meta name="description" content="play piano online">
+        <meta name="author" content="Shivam">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <script src="javascript/audiosynth.js"></script>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Sofia|Armata&effect=3d-float">
+        <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/backgroundAnimationCSS.css">
+        <link rel="icon" type="image/png" href="https://himanshu29400.github.io/Piano/images/keyboard.png?">
+    </head>
+    <body>
+        
+        <div id="background-animation-container">
+            <canvas id="sakura"></canvas>
+            <div class="btnbg"></div>
+        </div>    
+
+        <!-- sakura shader -->
+        <script id="sakura_point_vsh" type="x-shader/x_vertex">
+        uniform mat4 uProjection;
+        uniform mat4 uModelview;
+        uniform vec3 uResolution;
+        uniform vec3 uOffset;
+        uniform vec3 uDOF;  //x:focus distance, y:focus radius, z:max radius
+        uniform vec3 uFade; //x:start distance, y:half distance, z:near fade start
+
+        attribute vec3 aPosition;
+        attribute vec3 aEuler;
+        attribute vec2 aMisc; //x:size, y:fade
+
+        varying vec3 pposition;
+        varying float psize;
+        varying float palpha;
+        varying float pdist;
+
+        //varying mat3 rotMat;
+        varying vec3 normX;
+        varying vec3 normY;
+        varying vec3 normZ;
+        varying vec3 normal;
+
+        varying float diffuse;
+        varying float specular;
+        varying float rstop;
+        varying float distancefade;
+
+        void main(void) {
+            // Projection is based on vertical angle
+            vec4 pos = uModelview * vec4(aPosition + uOffset, 1.0);
+            gl_Position = uProjection * pos;
+            gl_PointSize = aMisc.x * uProjection[1][1] / -pos.z * uResolution.y * 0.5;
+            
+            pposition = pos.xyz;
+            psize = aMisc.x;
+            pdist = length(pos.xyz);
+            palpha = smoothstep(0.0, 1.0, (pdist - 0.1) / uFade.z);
+            
+            vec3 elrsn = sin(aEuler);
+            vec3 elrcs = cos(aEuler);
+            mat3 rotx = mat3(
+                1.0, 0.0, 0.0,
+                0.0, elrcs.x, elrsn.x,
+                0.0, -elrsn.x, elrcs.x
+            );
+            mat3 roty = mat3(
+                elrcs.y, 0.0, -elrsn.y,
+                0.0, 1.0, 0.0,
+                elrsn.y, 0.0, elrcs.y
+            );
+            mat3 rotz = mat3(
+                elrcs.z, elrsn.z, 0.0, 
+                -elrsn.z, elrcs.z, 0.0,
+                0.0, 0.0, 1.0
+            );
+            mat3 rotmat = rotx * roty * rotz;
+            normal = rotmat[2];
+            
+            mat3 trrotm = mat3(
+                rotmat[0][0], rotmat[1][0], rotmat[2][0],
+                rotmat[0][1], rotmat[1][1], rotmat[2][1],
+                rotmat[0][2], rotmat[1][2], rotmat[2][2]
+            );
+            normX = trrotm[0];
+            normY = trrotm[1];
+            normZ = trrotm[2];
+            
+            const vec3 lit = vec3(0.6917144638660746, 0.6917144638660746, -0.20751433915982237);
+            
+            float tmpdfs = dot(lit, normal);
+            if(tmpdfs < 0.0) {
+                normal = -normal;
+                tmpdfs = dot(lit, normal);
+            }
+            diffuse = 0.4 + tmpdfs;
+            
+            vec3 eyev = normalize(-pos.xyz);
+            if(dot(eyev, normal) > 0.0) {
+                vec3 hv = normalize(eyev + lit);
+                specular = pow(max(dot(hv, normal), 0.0), 20.0);
+            }
+            else {
+                specular = 0.0;
+            }
+            
+            rstop = clamp((abs(pdist - uDOF.x) - uDOF.y) / uDOF.z, 0.0, 1.0);
+            rstop = pow(rstop, 0.5);
+            //-0.69315 = ln(0.5)
+            distancefade = min(1.0, exp((uFade.x - pdist) * 0.69315 / uFade.y));
+        }
+        </script>
+        <script id="sakura_point_fsh" type="x-shader/x_fragment">
+        #ifdef GL_ES
+        //precision mediump float;
+        precision highp float;
+        #endif
+
+        uniform vec3 uDOF;  //x:focus distance, y:focus radius, z:max radius
+        uniform vec3 uFade; //x:start distance, y:half distance, z:near fade start
+
+        const vec3 fadeCol = vec3(0.08, 0.03, 0.06);
+
+        varying vec3 pposition;
+        varying float psize;
+        varying float palpha;
+        varying float pdist;
+
+        //varying mat3 rotMat;
+        varying vec3 normX;
+        varying vec3 normY;
+        varying vec3 normZ;
+        varying vec3 normal;
+
+        varying float diffuse;
+        varying float specular;
+        varying float rstop;
+        varying float distancefade;
+
+        float ellipse(vec2 p, vec2 o, vec2 r) {
+            vec2 lp = (p - o) / r;
+            return length(lp) - 1.0;
+        }
+
+        void main(void) {
+            vec3 p = vec3(gl_PointCoord - vec2(0.5, 0.5), 0.0) * 2.0;
+            vec3 d = vec3(0.0, 0.0, -1.0);
+            float nd = normZ.z; //dot(-normZ, d);
+            if(abs(nd) < 0.0001) discard;
+            
+            float np = dot(normZ, p);
+            vec3 tp = p + d * np / nd;
+            vec2 coord = vec2(dot(normX, tp), dot(normY, tp));
+            
+            //angle = 15 degree
+            const float flwrsn = 0.258819045102521;
+            const float flwrcs = 0.965925826289068;
+            mat2 flwrm = mat2(flwrcs, -flwrsn, flwrsn, flwrcs);
+            vec2 flwrp = vec2(abs(coord.x), coord.y) * flwrm;
+            
+            float r;
+            if(flwrp.x < 0.0) {
+                r = ellipse(flwrp, vec2(0.065, 0.024) * 0.5, vec2(0.36, 0.96) * 0.5);
+            }
+            else {
+                r = ellipse(flwrp, vec2(0.065, 0.024) * 0.5, vec2(0.58, 0.96) * 0.5);
+            }
+            
+            if(r > rstop) discard;
+            
+            vec3 col = mix(vec3(1.0, 0.8, 0.75), vec3(1.0, 0.9, 0.87), r);
+            float grady = mix(0.0, 1.0, pow(coord.y * 0.5 + 0.5, 0.35));
+            col *= vec3(1.0, grady, grady);
+            col *= mix(0.8, 1.0, pow(abs(coord.x), 0.3));
+            col = col * diffuse + specular;
+            
+            col = mix(fadeCol, col, distancefade);
+            
+            float alpha = (rstop > 0.001)? (0.5 - r / (rstop * 2.0)) : 1.0;
+            alpha = smoothstep(0.0, 1.0, alpha) * palpha;
+            
+            gl_FragColor = vec4(col * 0.5, alpha);
+        }
+        </script>
+        <!-- effects -->
+        <script id="fx_common_vsh" type="x-shader/x_vertex">
+        uniform vec3 uResolution;
+        attribute vec2 aPosition;
+
+        varying vec2 texCoord;
+        varying vec2 screenCoord;
+
+        void main(void) {
+            gl_Position = vec4(aPosition, 0.0, 1.0);
+            texCoord = aPosition.xy * 0.5 + vec2(0.5, 0.5);
+            screenCoord = aPosition.xy * vec2(uResolution.z, 1.0);
+        }
+        </script>
+        <script id="bg_fsh" type="x-shader/x_fragment">
+        #ifdef GL_ES
+        //precision mediump float;
+        precision highp float;
+        #endif
+
+        uniform vec2 uTimes;
+
+        varying vec2 texCoord;
+        varying vec2 screenCoord;
+
+        void main(void) {
+            vec3 col;
+            float c;
+            vec2 tmpv = texCoord * vec2(0.8, 1.0) - vec2(0.95, 1.0);
+            c = exp(-pow(length(tmpv) * 1.8, 2.0));
+            col = mix(vec3(0.02, 0.0, 0.03), vec3(0.96, 0.98, 1.0) * 1.5, c);
+            gl_FragColor = vec4(col * 0.5, 1.0);
+        }
+        </script>
+        <script id="fx_brightbuf_fsh" type="x-shader/x_fragment">
+        #ifdef GL_ES
+        //precision mediump float;
+        precision highp float;
+        #endif
+        uniform sampler2D uSrc;
+        uniform vec2 uDelta;
+
+        varying vec2 texCoord;
+        varying vec2 screenCoord;
+
+        void main(void) {
+            vec4 col = texture2D(uSrc, texCoord);
+            gl_FragColor = vec4(col.rgb * 2.0 - vec3(0.5), 1.0);
+        }
+        </script>
+        <script id="fx_dirblur_r4_fsh" type="x-shader/x_fragment">
+        #ifdef GL_ES
+        //precision mediump float;
+        precision highp float;
+        #endif
+        uniform sampler2D uSrc;
+        uniform vec2 uDelta;
+        uniform vec4 uBlurDir; //dir(x, y), stride(z, w)
+
+        varying vec2 texCoord;
+        varying vec2 screenCoord;
+
+        void main(void) {
+            vec4 col = texture2D(uSrc, texCoord);
+            col = col + texture2D(uSrc, texCoord + uBlurDir.xy * uDelta);
+            col = col + texture2D(uSrc, texCoord - uBlurDir.xy * uDelta);
+            col = col + texture2D(uSrc, texCoord + (uBlurDir.xy + uBlurDir.zw) * uDelta);
+            col = col + texture2D(uSrc, texCoord - (uBlurDir.xy + uBlurDir.zw) * uDelta);
+            gl_FragColor = col / 5.0;
+        }
+        </script>
+        <!-- effect fragment shader template -->
+        <script id="fx_common_fsh" type="x-shader/x_fragment">
+        #ifdef GL_ES
+        //precision mediump float;
+        precision highp float;
+        #endif
+        uniform sampler2D uSrc;
+        uniform vec2 uDelta;
+
+        varying vec2 texCoord;
+        varying vec2 screenCoord;
+
+        void main(void) {
+            gl_FragColor = texture2D(uSrc, texCoord);
+        }
+        </script>
+        <!-- post processing -->
+        <script id="pp_final_vsh" type="x-shader/x_vertex">
+        uniform vec3 uResolution;
+        attribute vec2 aPosition;
+        varying vec2 texCoord;
+        varying vec2 screenCoord;
+        void main(void) {
+            gl_Position = vec4(aPosition, 0.0, 1.0);
+            texCoord = aPosition.xy * 0.5 + vec2(0.5, 0.5);
+            screenCoord = aPosition.xy * vec2(uResolution.z, 1.0);
+        }
+        </script>
+        <script id="pp_final_fsh" type="x-shader/x_fragment">
+        #ifdef GL_ES
+        //precision mediump float;
+        precision highp float;
+        #endif
+        uniform sampler2D uSrc;
+        uniform sampler2D uBloom;
+        uniform vec2 uDelta;
+        varying vec2 texCoord;
+        varying vec2 screenCoord;
+        void main(void) {
+            vec4 srccol = texture2D(uSrc, texCoord) * 2.0;
+            vec4 bloomcol = texture2D(uBloom, texCoord);
+            vec4 col;
+            col = srccol + bloomcol * (vec4(1.0) + srccol);
+            col *= smoothstep(1.0, 0.0, pow(length((texCoord - vec2(0.5)) * 2.0), 1.2) * 0.5);
+            col = pow(col, vec4(0.45454545454545)); //(1.0 / 2.2)
+            
+            gl_FragColor = vec4(col.rgb, 1.0);
+            gl_FragColor.a = 1.0;
+        }
+        </script>
+
+        <div class="container-fluid" id="header-container">
+            <div id="header" class="text-center font-effect-3d-float">Piano</div>
+        </div>
+
+        <div id="controls-container" class="container-fluid">
+            <div class="row">
+
+                <div class="col-sm">
+                    <div id="sample-rate-container" class="container-fluid"> 
+                            <form>
+                                <label for="sample-rate">Sample Rate (Hz): </label>
+                                <input type="range" class="custom-range" id="sample-rate" min="4000" max="44100" onchange="updateSampleRate()">
+                            </form> 
+                    </div>           
+                </div>
+
+                <div class="col-sm pb-1">
+                    <div id="sound-container" class="container-fluid">
+                            <form>
+                                <label for="sound">Choose a sound:</label>
+                                <select id="sound" name="sound" class="custom-select custom-select-sm">
+                                    <option value="piano">Piano</option>
+                                    <option value="organ">Organ</option>
+                                    <option value="acoustic">Acoustic</option>
+                                    <option value="edm">Edm</option>
+                                </select>
+                            </form>    
+                    </div>
+                </div>
+
+                <div class="col-sm">
+                    <div id="volume-container" class="container-fluid"> 
+                            <form>
+                                <label for="volume">Volume (%): </label>
+                                <input type="range" class="custom-range" id="volume" min="0" max="100" onchange="updateVolume()">
+                            </form>  
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+        <div id="keyboard-container">
+            
+            <div class="d-flex" id="keyboard">
+                <div class="flex-fill big-keyboard-key" id="big-key-1" onclick="handleKeyPress(this)">
+                    <div class="alt-key">~</div>
+                    <div class="note-octave">C2</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-2" onclick="handleKeyPress(this)">
+                    <div class="alt-key">2</div>
+                    <div class="note-octave">D2</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-3" onclick="handleKeyPress(this)">
+                    <div class="alt-key">4</div>
+                    <div class="note-octave">E2</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-4" onclick="handleKeyPress(this)">
+                    <div class="alt-key">5</div>
+                    <div class="note-octave">F2</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-5" onclick="handleKeyPress(this)">
+                    <div class="alt-key">7</div>
+                    <div class="note-octave">G2</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-6" onclick="handleKeyPress(this)">
+                    <div class="alt-key">9</div>
+                    <div class="note-octave">A2</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-7" onclick="handleKeyPress(this)">
+                    <div class="alt-key">-</div>
+                    <div class="note-octave">32</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-8" onclick="handleKeyPress(this)">
+                    <div class="alt-key">=</div>
+                    <div class="note-octave">C3</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-9" onclick="handleKeyPress(this)">
+                    <div class="alt-key">W</div>
+                    <div class="note-octave">D3</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-10" onclick="handleKeyPress(this)">
+                    <div class="alt-key">R</div>
+                    <div class="note-octave">E3</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-11" onclick="handleKeyPress(this)">
+                    <div class="alt-key">T</div>
+                    <div class="note-octave">F3</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-12" onclick="handleKeyPress(this)">
+                    <div class="alt-key">U</div>
+                    <div class="note-octave">G3</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-13" onclick="handleKeyPress(this)">
+                    <div class="alt-key">O</div>
+                    <div class="note-octave">A3</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-14" onclick="handleKeyPress(this)">
+                    <div class="alt-key">[</div>
+                    <div class="note-octave">B3</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-15" onclick="handleKeyPress(this)">
+                    <div class="alt-key">]</div>
+                    <div class="note-octave">C4</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-16" onclick="handleKeyPress(this)">
+                    <div class="alt-key">S</div>
+                    <div class="note-octave">D4</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-17" onclick="handleKeyPress(this)">
+                    <div class="alt-key">F</div>
+                    <div class="note-octave">E4</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-18" onclick="handleKeyPress(this)">
+                    <div class="alt-key">G</div>
+                    <div class="note-octave">F4</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-19" onclick="handleKeyPress(this)">
+                    <div class="alt-key">J</div>
+                    <div class="note-octave">G4</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-20" onclick="handleKeyPress(this)">
+                    <div class="alt-key">L</div>
+                    <div class="note-octave">A4</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-21" onclick="handleKeyPress(this)">
+                    <div class="alt-key">"</div>
+                    <div class="note-octave">B4</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-22" onclick="handleKeyPress(this)">
+                    <div class="alt-key">Z</div>
+                    <div class="note-octave">C5</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-23" onclick="handleKeyPress(this)">
+                    <div class="alt-key">C</div>
+                    <div class="note-octave">D5</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-24" onclick="handleKeyPress(this)">
+                    <div class="alt-key">B</div>
+                    <div class="note-octave">E5</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-25" onclick="handleKeyPress(this)">
+                    <div class="alt-key">N</div>
+                    <div class="note-octave">F5</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-26" onclick="handleKeyPress(this)">
+                    <div class="alt-key">,</div>
+                    <div class="note-octave">G5</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-27" onclick="handleKeyPress(this)">
+                    <div class="alt-key">/</div>
+                    <div class="note-octave">A5</div>
+                </div>
+                <div class="flex-fill big-keyboard-key" id="big-key-28" onclick="handleKeyPress(this)">
+                    <div class="alt-key">-></div>
+                    <div class="note-octave">B5</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-1" onclick="handleKeyPress(this)">
+                    <div class="alt-key">1</div>
+                    <div class="note-octave">C2#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-2" onclick="handleKeyPress(this)">
+                    <div class="alt-key">3</div>
+                    <div class="note-octave">D2#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-3" onclick="handleKeyPress(this)">
+                    <div class="alt-key">6</div>
+                    <div class="note-octave">F2#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-4" onclick="handleKeyPress(this)">
+                    <div class="alt-key">8</div>
+                    <div class="note-octave">G2#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-5" onclick="handleKeyPress(this)">
+                    <div class="alt-key">0</div>
+                    <div class="note-octave">A2#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-6" onclick="handleKeyPress(this)">
+                    <div class="alt-key">Q</div>
+                    <div class="note-octave">C3#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-7" onclick="handleKeyPress(this)">
+                    <div class="alt-key">E</div>
+                    <div class="note-octave">D3#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-8" onclick="handleKeyPress(this)">
+                    <div class="alt-key">Y</div>
+                    <div class="note-octave">F3#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-9" onclick="handleKeyPress(this)">
+                    <div class="alt-key">I</div>
+                    <div class="note-octave">G3#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-10" onclick="handleKeyPress(this)">
+                    <div class="alt-key">P</div>
+                    <div class="note-octave">A3#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-11" onclick="handleKeyPress(this)">
+                    <div class="alt-key">A</div>
+                    <div class="note-octave">C4#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-12" onclick="handleKeyPress(this)">
+                    <div class="alt-key">D</div>
+                    <div class="note-octave">D4#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-13" onclick="handleKeyPress(this)">
+                    <div class="alt-key">H</div>
+                    <div class="note-octave">F4#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-14" onclick="handleKeyPress(this)">
+                    <div class="alt-key">K</div>
+                    <div class="note-octave">G4#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-15" onclick="handleKeyPress(this)">
+                    <div class="alt-key">;</div>
+                    <div class="note-octave">A4#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-16" onclick="handleKeyPress(this)">
+                    <div class="alt-key">X</div>
+                    <div class="note-octave">C5#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-17" onclick="handleKeyPress(this)">
+                    <div class="alt-key">V</div>
+                    <div class="note-octave">D5#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-18" onclick="handleKeyPress(this)">
+                    <div class="alt-key">M</div>
+                    <div class="note-octave">F5#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-19" onclick="handleKeyPress(this)">
+                    <div class="alt-key">.</div>
+                    <div class="note-octave">G5#</div>
+                </div>
+                <div class="flex-fill small-keyboard-key" id="small-key-20" onclick="handleKeyPress(this)">
+                    <div class="alt-key"><-</div>
+                    <div class="note-octave">A5#</div>
+                </div>
+            </div> 
+        </div>   
+        
+        <div id="footer" class="container-fluid">
+            <div id="copyright-section">
+                Copyright @2021 | Designed with <i class="fa fa-heart" id="heart-symbol"></i> by Shivam!
+            </div>
+            <div id="social-profile-links">
+                <a target="_blank" href="https://www.facebook.com/profile.php?id=100008648225178" class="fa fa-facebook mx-3"></a>
+                <a target="_blank" href="https://twitter.com/Shivam_29400" class="fa fa-twitter mx-3"></a>
+                <a target="_blank" href="https://www.linkedin.com/in/Himanshu-h-77990b157/" class="fa fa-linkedin mx-3"></a>
+                <a target="_blank" href="https://www.instagram.com/himanshu29400/" class="fa fa-instagram mx-3"></a>
+            </div>
+        </div>
+        <script src="javascript/myScript.js"></script>
+        <script src="javascript/backgroundAnimationJS.js"></script>
+    </body>
+</html>

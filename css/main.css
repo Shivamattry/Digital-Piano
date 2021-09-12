@@ -1,0 +1,456 @@
+/*------------------------------------------BODY CSS-------------------------------------------*/
+
+body {
+    overflow-x:hidden;
+}
+
+* {
+    user-select: none;
+}
+
+/*------------------------------------------HEADER PART CSS--------------------------------------*/
+
+/*Source: https://webdevtrick.com/css-gradient-background/ */
+@keyframes gradientBG {
+    0% {
+    background-position: 0% 50%;
+    }
+    50% {
+    background-position: 100% 50%;
+    }
+    100% {
+    background-position: 0% 50%;
+    }
+} 
+
+#header-container {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab );
+    animation: gradientBG 10s ease infinite;
+    background-size: 200% 200%;
+}
+
+#header {
+    font-family: "Sofia", sans-serif;
+}
+
+@media screen and (min-width: 641px) {
+    #header {
+      font-size: 50px;
+    }
+}
+  
+@media screen and (max-width: 640px) {
+    #header {
+      font-size: 35px;
+    }
+}
+
+/*----------------------------------------CONTROLS CONTAINER CSS----------------------------------------------*/
+
+#controls-container {
+    font-family: "Armata";
+    font-weight: bold;
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab );
+    color: lavenderblush;
+}
+
+@media screen and (min-width: 641px) {
+    #controls-container {
+        padding: 5px;
+        font-size: 13px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    #controls-container {
+        padding: 5px;
+        font-size: 13px;
+    }
+}
+
+/*----------------------------------------KEYBOARD CONTAINER CSS---------------------------------------------------*/
+
+#keyboard-container {
+    overflow-x: auto;
+    background-color: transparent;
+}
+
+@media screen and (min-width: 641px) {
+    #keyboard-container {
+        margin-top: 140px;
+        height: 300px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    #keyboard-container {
+        margin-top: 100px;
+        height: 200px;
+    }
+}
+
+
+/*----------------------------------------------KEYBOARD CSS--------------------------------------------------------*/
+
+#keyboard {
+    position: relative;
+    margin: auto;
+}
+
+@media screen and (min-width: 641px) {
+    #keyboard {
+        width: 1300px;
+        height: 250px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    #keyboard {
+        width: 630px;
+        height: 150px;
+    }
+}
+
+/*-------------------------------------------KEYBOARD KEYS CSS-----------------------------------------------------*/
+
+@media screen and (min-width: 641px) {
+    .big-keyboard-key {
+        border-style: solid;
+        border-width: 1px;
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+}    
+
+@media screen and (max-width: 640px) {
+    .big-keyboard-key {
+        border-style: solid;
+        border-width: 0.5px;
+        border-bottom-left-radius: 4px;
+        border-bottom-right-radius: 4px;
+    }
+}
+
+.note-octave, .alt-key {
+    text-align: center;
+}
+
+@media screen and (max-width: 640px) {
+    .small-keyboard-key, .big-keyboard-key {
+        font-size: 10px;
+    }
+}
+
+@media screen and (min-width: 641px) {
+    .big-keyboard-key .alt-key {
+        margin-top: 160px;
+    }
+    .big-keyboard-key .note-octave {
+        margin-top: 20px;
+    }
+    .small-keyboard-key .alt-key {
+        margin-top: 50px;
+    }
+    .small-keyboard-key .note-octave {
+        margin-top: 20px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .big-keyboard-key .alt-key {
+        margin-top: 100px;
+    }
+    .big-keyboard-key .note-octave {
+        margin-top: 6px;
+    }
+    .small-keyboard-key .alt-key {
+        margin-top: 30px;
+    }
+    .small-keyboard-key .note-octave {
+        margin-top: 15px;
+    }
+}
+
+.big-keyboard-key {
+    background-color: lavenderblush;
+    font-weight: bold;
+}
+
+.small-keyboard-key {
+    background-color: pink;
+    font-weight: bold;
+}
+
+.big-keyboard-key:hover, .small-keyboard-key:hover{
+    cursor: pointer;
+}
+
+.big-keyboard-key:hover, .small-keyboard-key:hover{
+    background-color: red !important;
+    color: white;
+}
+
+@media screen and (min-width: 641px) {
+    .big-keyboard-key {
+        border-color: Lightgrey;
+        box-shadow: 0px 5px rgba(0, 0, 0, 1.0);
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .big-keyboard-key {
+        border-color: Lightgrey;
+        box-shadow: 0px 2.5px rgba(0, 0, 0, 1.0);
+    }
+}
+
+@media screen and (min-width: 641px) {
+    .small-keyboard-key {
+        border-color: lightgrey;
+        box-shadow: 0px 5px rgba(0, 0, 0, 0.2);
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .small-keyboard-key {
+        border-color: lightgrey;
+        box-shadow: 0px 2.5px rgba(0, 0, 0, 0.2);
+    }
+}
+
+.small-keyboard-key {
+    position: absolute;
+    top: 0px;
+}
+
+@media screen and (min-width: 641px) {
+    .small-keyboard-key {
+        border-style: solid;
+        border-width: 1px;
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+        width: 36.42px;
+        height: 140px;
+    }
+    #small-key-1 {
+        left: 28.21px;
+    }
+    #small-key-2 {
+        left: 74.63px;
+    }
+    #small-key-3 {
+        left: 167.47px;
+    }
+    #small-key-4 {
+        left: 213.89px;
+    }
+    #small-key-5 {
+        left: 260.31px;
+    }
+    #small-key-6 {
+        left: 353.15px;
+    }
+    #small-key-7 {
+        left: 399.57px;
+    }
+    #small-key-8 {
+        left: 492.41px;
+    }
+    #small-key-9 {
+        left: 538.83px;
+    }
+    #small-key-10 {
+        left: 585.25px;
+    }
+    #small-key-11 {
+        left: 678.09px;
+    }
+    #small-key-12 {
+        left: 724.51px;
+    }
+    #small-key-13 {
+        left: 817.35px;
+    }
+    #small-key-14 {
+        left: 863.77px;
+    }
+    #small-key-15 {
+        left: 910.19px;
+    }
+    #small-key-16 {
+        left: 1003.03px;
+    }
+    #small-key-17 {
+        left: 1049.45px;
+    }
+    #small-key-18 {
+        left: 1142.29px;
+    }
+    #small-key-19 {
+        left: 1188.71px;
+    }
+    #small-key-20 {
+        left: 1235.13px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .small-keyboard-key {
+        border-style: solid;
+        border-width: 0.5px;
+        border-bottom-left-radius: 4px;
+        border-bottom-right-radius: 4px;
+        width: 17.5px;
+        height: 80px;
+    }
+    .small-keyboard-key .alt-key {
+        font-size: 10px;
+    }
+    .small-keyboard-key .note-octave {
+        font-size: 8px;
+    }
+    #small-key-1 {
+        left: 13.75px;
+    }
+    #small-key-2 {
+        left: 36.25px;
+    }
+    #small-key-3 {
+        left: 81.25px;
+    }
+    #small-key-4 {
+        left: 103.75px;
+    }
+    #small-key-5 {
+        left: 126.25px;
+    }
+    #small-key-6 {
+        left: 171.25px;
+    }
+    #small-key-7 {
+        left: 193.75px;
+    }
+    #small-key-8 {
+        left: 238.75px;
+    }
+    #small-key-9 {
+        left: 261.25px;
+    }
+    #small-key-10 {
+        left: 283.75px;
+    }
+    #small-key-11 {
+        left: 328.75px;
+    }
+    #small-key-12 {
+        left: 351.25px;
+    }
+    #small-key-13 {
+        left: 396.25px;
+    }
+    #small-key-14 {
+        left: 418.75px;
+    }
+    #small-key-15 {
+        left: 441.25px;
+    }
+    #small-key-16 {
+        left: 486.25px;
+    }
+    #small-key-17 {
+        left: 508.75px;
+    }
+    #small-key-18 {
+        left: 553.75px;
+    }
+    #small-key-19 {
+        left: 576.25px;
+    }
+    #small-key-20 {
+        left: 598.75px;
+    }
+}
+
+/*----------------------------------------------FOOTER CSS---------------------------------------------------*/
+
+@media screen and (min-width: 641px) {
+    #footer {
+        margin-top: 140px;
+        padding: 0px;
+        margin-bottom: 20px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    #footer {
+        margin-top: 100px;
+        padding: 0px;
+        margin-bottom: 10px;
+    }
+}
+
+#copyright-section, #social-profile-links {
+    text-align: center;
+    color: pink;
+}
+
+.fa-heart {
+    color: red;
+}
+
+#copyright-section {
+    font-weight: bold;
+}
+
+@media screen and (min-width: 641px) {
+    #copyright-section {
+        padding: 2px;
+    }
+    #social-profile-links {
+        padding-top: 5px;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    #copyright-section {
+        font-size: 13px;
+        padding: 2px;
+    }
+    #social-profile-links {
+        padding-top: 5px;
+    }
+}
+
+#social-profile-links a{
+    text-decoration: none;
+}
+
+@media screen and (max-width: 640px) {
+    #social-profile-links a {
+        font-size: 15px;
+    }
+}
+
+.fa-facebook, .fa-twitter, .fa-instagram, .fa-linkedin{
+    color: white;
+}
+
+.fa-facebook:hover, .fa-twitter:hover, .fa-instagram:hover, .fa-linkedin:hover {
+    color: pink;
+}
+
+@keyframes moveDownDesktop {
+    0% {transform: translateY(0px); box-shadow: 0px 5px rgba(0, 0, 0, 0.2);}
+    25% {box-shadow: 0px 5px rgba(0, 0, 0, 0);}
+    50% {transform: translateY(5px);}
+    75% {box-shadow: 0px 5px rgba(0, 0, 0, 0);}
+    100% {transform: translateY(0px); box-shadow: 0px 5px rgba(0, 0, 0, 0.2);}
+}  
+
+@keyframes moveDownMobile {
+    0% {transform: translateY(0px); box-shadow: 0px 2.5px rgba(0, 0, 0, 0.2);}
+    25% {box-shadow: 0px 2.5px rgba(0, 0, 0, 0);}
+    50% {transform: translateY(2.5px);}
+    75% {box-shadow: 0px 2.5px rgba(0, 0, 0, 0);}
+    100% {transform: translateY(0px); box-shadow: 0px 2.5px rgba(0, 0, 0, 0.2);}
+} 
